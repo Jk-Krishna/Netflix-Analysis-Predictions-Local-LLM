@@ -1,0 +1,227 @@
+# -*- coding: utf-8 -*-
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+netflix = pd.read_csv("/content/netflix_titles.csv")
+netflix.shape
+
+netflix.head()
+
+netflix.isnull().sum()
+
+netflix['country'].fillna('Unknown', inplace=True)
+netflix['rating'].fillna('Not Rated', inplace=True)
+
+netflix.drop('date_added', axis=1, inplace=True)
+netflix.drop('release_year', axis=1, inplace=True)
+
+sns.countplot(data=netflix, x='type')
+plt.title('Movies vs TV Shows')
+plt.show()
+
+top_countries = netflix['country'].value_counts().head(10)
+top_countries.plot(kind='bar')
+plt.title('Top 10 Countries by Content')
+plt.show()
+
+rating_counts = netflix['rating'].value_counts()
+plt.figure(figsize=(10, 6))
+plt.barh(rating_counts.index, rating_counts.values)
+plt.xlabel('Count')
+plt.ylabel('Rating')
+plt.title('Content Ratings Distribution')
+plt.gca().invert_yaxis()
+plt.show()
+
+from sklearn.preprocessing import LabelEncoder
+le = LabelEncoder()
+netflix['type'] = le.fit_transform(netflix['type'])
+X = netflix[['duration', 'rating', 'country']]
+y = netflix['type']
+X = pd.get_dummies(X, drop_first=True)
+
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score, classification_report,confusion_matrix
+
+x_train,x_test,y_train,y_test=train_test_split(X,y,test_size=0.2,random_state=42)
+
+model = RandomForestClassifier(n_estimators=100, random_state=42)
+model.fit(x_train, y_train)
+
+y_pred=model.predict(x_test)
+
+print("RandomForestClassifire Accuracy:", accuracy_score(y_test, y_pred))
+print(classification_report(y_test, y_pred))
+print("Training accuracy:", model.score(x_train, y_train))
+print("Test accuracy:", model.score(x_test, y_test))
+
+from sklearn.linear_model import LogisticRegression
+
+log_model = LogisticRegression(max_iter=500)
+log_model.fit(x_train, y_train)
+log_pred = log_model.predict(x_test)
+
+print("Logistic Regression Accuracy:", accuracy_score(y_test, log_pred))
+print(classification_report(y_test, log_pred))
+print("Training accuracy:", log_model.score(x_train, y_train))
+print("Test accuracy:", log_model.score(x_test, y_test))
+
+from sklearn.neighbors import KNeighborsClassifier
+
+knn = KNeighborsClassifier(n_neighbors=5)
+knn.fit(x_train, y_train)
+knn_pred = knn.predict(x_test)
+
+print("KNN Accuracy:", accuracy_score(y_test, knn_pred))
+print(classification_report(y_test, knn_pred))
+print("Training accuracy:", knn.score(x_train, y_train))
+print("Test accuracy:", knn.score(x_test, y_test))
+
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+
+df = pd.read_csv("netflix_titles.csv")
+df.drop(['date_added','release_year'], axis=1, inplace=True, errors='ignore')
+df['description'].fillna('', inplace=True)
+df['type'] = LabelEncoder().fit_transform(df['type'])  # Movie=1, TV Show=0
+
+X = df['description']
+y = df['type']
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+vectorizer = TfidfVectorizer(max_features=5000, stop_words='english')
+X_train_tfidf = vectorizer.fit_transform(X_train)
+X_test_tfidf = vectorizer.transform(X_test)
+
+print(X_train_tfidf.shape, len(y_train))
+
+from sklearn.linear_model import LogisticRegression
+lr_model = LogisticRegression(max_iter=500)
+lr_model.fit(X_train_tfidf, y_train)
+
+y_pred = lr_model.predict(X_test_tfidf)
+
+print("Accuracy:", accuracy_score(y_test, y_pred))
+print(classification_report(y_test, y_pred))
+
+X_train = X_train.fillna('').astype(str).reset_index(drop=True)
+X_test = X_test.fillna('').astype(str).reset_index(drop=True)
+
+y_train = y_train.reset_index(drop=True)
+y_test = y_test.reset_index(drop=True)
+
+from sentence_transformers import SentenceTransformer
+from sklearn.ensemble import RandomForestClassifier
+
+model = SentenceTransformer('all-MiniLM-L6-v2')
+
+X_train_emb = model.encode(X_train.tolist(), show_progress_bar=True)
+X_test_emb = model.encode(X_test.tolist(), show_progress_bar=True)
+
+clf = RandomForestClassifier(n_estimators=100, random_state=42)
+clf.fit(X_train_emb, y_train.values)
+
+y_pred_emb = clf.predict(X_test_emb)
+
+from sklearn.metrics import accuracy_score, classification_report
+print("Accuracy with embeddings:", accuracy_score(y_test, y_pred_emb))
+print(classification_report(y_test, y_pred_emb))
+
+def predict_from_description(description):
+    description = str(description)
+    emb = model.encode([description])
+    pred = clf.predict(emb)[0]
+    return "Movie" if pred == 1 else "TV Show"
+
+print(predict_from_description(
+    "A wonderful joy adventure ride of a very close group of friends, exploring various worlds, places, fightings with ultimate boss. Beautiful story and direction"
+))
+
+!pip install sentence-transformers faiss-cpu transformers torch
+
+import pandas as pd
+
+df = pd.read_csv("netflix_titles.csv")
+df.drop(['date_added','release_year'], axis=1, inplace=True, errors='ignore')
+df['description'].fillna('', inplace=True)
+df['type'] = df['type'].str.lower().map({'movie':1, 'tv show':0})
+
+descriptions = df['description'].tolist()
+labels = df['type'].tolist()
+titles = df['title'].tolist()
+
+from sentence_transformers import SentenceTransformer
+import numpy as np
+
+embed_model = SentenceTransformer('all-MiniLM-L6-v2')
+desc_vectors = embed_model.encode(descriptions, show_progress_bar=True)
+desc_vectors = np.array(desc_vectors).astype('float32')
+
+import faiss
+
+dimension = desc_vectors.shape[1]
+index = faiss.IndexFlatL2(dimension)
+index.add(desc_vectors)
+
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+
+X_train, X_test, y_train, y_test = train_test_split(desc_vectors, labels, test_size=0.2, random_state=42)
+clf = RandomForestClassifier(n_estimators=100, random_state=42)
+clf.fit(X_train, y_train)
+
+# Optional: check accuracy
+from sklearn.metrics import accuracy_score
+y_pred = clf.predict(X_test)
+print("Classifier Accuracy:", accuracy_score(y_test, y_pred))
+
+from transformers import pipeline
+
+
+generator = pipeline('text-generation', model='distilgpt2')
+
+def free_rag_predict(description, top_k=5):
+
+    # Embed user query
+    user_emb = embed_model.encode([description]).astype('float32')
+
+    # Search nearest descriptions
+    D, I = index.search(user_emb, top_k)
+
+    # ✅ Get recommended titles
+    recommended_titles = [titles[i] for i in I[0]]
+
+    # Predict movie / tv show
+    pred = clf.predict(user_emb)[0]
+    pred_label = "🎬 Movie" if pred==1 else "📺 TV Show"
+
+    # Small RAG explanation
+    context = " | ".join([descriptions[i] for i in I[0]])
+    prompt = f"""
+    Description: {description}
+    Similar Content: {context}
+    Question: Is this a Movie or TV Show? Explain briefly.
+    """
+    explanation = generator(prompt, max_length=80, do_sample=True)[0]['generated_text']
+
+    return pred_label, recommended_titles, explanation
+
+while True:
+    user_input = input("\nEnter description (or 'exit'): ")
+    if user_input.lower() == "exit":
+        break
+
+    label, recs, reason = free_rag_predict(user_input)
+    print("\nPrediction:", label)
+    print("\nRecommended Titles:")
+    for r in recs:
+        print("  -", r)
+    print("\nExplanation:", reason)
